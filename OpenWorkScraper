@@ -1,0 +1,367 @@
+# ※注意※
+# 以下の利用規約を熟読した上で、本プログラムの利用は自己責任でお願いします。
+# 利用規約　OpenWork（旧:Vorkers）
+# https://www.vorkers.com/rule.php
+import warnings
+warnings.filterwarnings('ignore')
+import time
+import datetime
+from selenium import webdriver
+from selenium.webdriver.support.ui import WebDriverWait
+import pandas as pd
+import numpy as np
+from selenium.webdriver.chrome.options import Options # オプションを使うためには必要
+
+# -------------------- 定数 -------------------- #
+LOGIN_USER = "xxxxxxxxxxxxx"
+LOGIN_PASS = "xxxxxxxxxxxxx"
+#企業ID.任意の企業IDを指定する (リスト形式で複数指定も可能)
+company_ids = ['a0910000000FrIy']
+# https://www.vorkers.com/company_answer.php?m_id=xxxxxxxxxxxxxxx
+
+kuchikomi_ids = [1]#(リスト形式で複数指定も可能)
+# https://www.vorkers.com/company_answer.php?m_id=xxxxxxxxxxxxxxx&q_no=y
+#   1   組織体制・企業文化
+#   2   年収・給与制度
+#   3   入社理由と入社後ギャップ
+#   4   働きがい・成長
+#   5   女性の働きやすさ
+#   6   ワーク・ライフ・バランス
+#   7   -
+#   8   退職検討理由
+#   9   企業分析［強み・弱み・展望］
+#   10  経営者への提言
+
+now = datetime.datetime.now()
+# OUTPUT_CSV_FILEPATH = now.strftime("./%Y%m%d-%H%M.csv")
+#OUTPUT_CSV_FILEPATH = "./scraping.csv"
+
+DRIVER_PATH = './chromedriver'
+BASE_URL = "https://www.vorkers.com/"
+
+#wait time. いじらない
+SLEEP_TIME = 5
+
+#指定したページ数(1ページ25コメント)だけコメントを取得する。
+#上限なしの場合は10000とかテキトーに大きい数を入れる
+MAX_PAGES = 1
+
+#Error Message. 要素を取得できない場合にNullで埋める
+Error_Message = None
+# --------------------------------------------- #
+ 
+#option = Options()   # オプションを用意
+#option.add_argument('--headless')   #headless mode にはしない 
+driver = webdriver.Chrome(executable_path = DRIVER_PATH)#options=option)
+driver.get(BASE_URL) #Top pageにアクセス
+time.sleep(SLEEP_TIME) #sleep timeを指定
+
+# login page
+driver.find_element_by_xpath('//*[@id="headerMenu"]/li[3]/a').click()
+time.sleep(SLEEP_TIME)
+
+# login
+user_box = driver.find_element_by_xpath('//*[@id="_username"]')
+pass_box = driver.find_element_by_xpath('//*[@id="_password"]')
+user_box.send_keys(LOGIN_USER)
+pass_box.send_keys(LOGIN_PASS)
+driver.find_element_by_xpath('//*[@id="log_in"]').click()
+time.sleep(SLEEP_TIME)
+
+###スクレイピング項目の中身の入るハコを作る##
+a=[]
+b=[]
+c=[]
+d=[]
+e=[]
+f=[]
+g=[]
+h=[]
+
+#こっちは企業情報が入るハコ
+#k0=[]
+k1=[]
+k2=[]
+k3=[]
+k4=[]
+k5=[]
+k6=[]
+k7=[]
+k8=[]
+k9=[]
+k10=[]
+k11=[]
+k12=[]
+k13=[]
+#####################
+
+# scraping1 口コミ＋評点
+for company_id in company_ids:
+    for kuchikomi_id in kuchikomi_ids:
+        kuchikomi_start_url = BASE_URL + "company_answer.php?m_id=" + company_id + "&q_no=" + str(kuchikomi_id)
+
+        page = 1
+        
+        while True:
+            
+            kuchikomi_now_url = kuchikomi_start_url + "&next_page=" + str(page)
+            driver.get(kuchikomi_now_url)
+            time.sleep(SLEEP_TIME)
+
+            ######### エラー処理 #########
+            # 最終ページ＋1ページ目は1ページ目に戻ってくる
+            if driver.current_url == kuchikomi_start_url and page != 1:
+                break
+
+            # 1ページしかない場合は、2ページ目はエラー
+            elif driver.title == "404エラー　File not found　OpenWork":
+                break
+                
+            #指定したページ数に達したら終了
+            elif page > MAX_PAGES:
+                break
+            ###########################
+            
+
+            ##### スクレイピング処理 #####
+            print("[---------- " + driver.title + " ----------]")
+            # articleは1ページ最大25件
+            for i in range(1, 26):
+                
+                print("[ article " + str(i) + " ]")
+
+                # 1. 回答日（2018年05月17日）
+                answer_time_xpath  = '//*[@id="anchor01"]/article[' + str(i) + ']/div[1]/p/time'
+                # 2. 回答者属性（SE、在籍3年未満、現職（回答時）、新卒入社、男性、xxx）
+                answer_type_xpath  = '//*[@id="anchor01"]/article[' + str(i) + ']/div[2]/dl/dt/a'
+                # 3. 点数（2.4）
+                answer_score_xpath = '//*[@id="anchor01"]/article[' + str(i) + ']/div[2]/dl/dt/span[2]/span[6]'
+                # 4. 本文
+                answer_body_xpath  = '//*[@id="anchor01"]/article[' + str(i) + ']/div[2]/dl/dd'
+                # 5 業種
+                company_type_xpath = '//*[@id="jsCompanyInfoBox"]/div[2]/dl/dd[1]/ul/li/a'
+                # 6 企業名
+                company_name_xpath = '//*[@id="anchor01"]/div[1]/h3'
+
+                try:
+                    answer_time_text  = driver.find_element_by_xpath(answer_time_xpath).text
+                    answer_type_text  = driver.find_element_by_xpath(answer_type_xpath).text
+                    answer_score_text = driver.find_element_by_xpath(answer_score_xpath).text
+                    answer_body_text  = driver.find_element_by_xpath(answer_body_xpath).text
+                    company_type_text = driver.find_element_by_xpath(company_type_xpath).text
+                    company_name_text = driver.find_element_by_xpath(company_name_xpath).text
+                # articleが25件未満
+                except Exception:
+                # except selenium.common.exceptions.NoSuchElementException:
+                    break
+                
+                #空リストに値を挿入
+                a+=[company_name_text]
+                b+=[company_id]
+                c+=[str(kuchikomi_id)]
+                d+=[answer_time_text]
+                e+=[answer_type_text]
+                f+=[answer_score_text]
+                g+=[answer_body_text]
+                h+=[company_type_text]
+                
+                #with open(OUTPUT_CSV_FILEPATH, mode='a',encoding='utf_8_sig') as f:
+                    #f.write(tmp_str)
+            ###########################
+
+            page += 1
+            
+    # scraping2 (企業基本データ+会社評価スコアTop)
+    for company_id in company_ids:
+        kuchikomi_top_url = BASE_URL + "company.php?m_id=" + company_id
+        driver.get(kuchikomi_top_url)
+        time.sleep(SLEEP_TIME)
+        print('--TOP page--')
+        # 1. 残業時間
+        overtime_xpath  = '//*[@id="mainColumn"]/article[1]/div[2]/div[1]/div[2]/dl[1]/dd/span'
+        #2. 有給消化率
+        paidvacation_xpath = '//*[@id="mainColumn"]/article[1]/div[2]/div[1]/div[2]/dl[2]/dd/span'
+        #3. 平均年収
+        average_salary_xpath = '//*[@id="mainColumn"]/article[3]/div[2]/table/tbody/tr[1]/td/span[1]'
+        #4. 設立年
+        #エキスパンドのxpath
+        expand_xpath = '//*[@id="jsCompanyInfoBox"]/p/a'
+        #「もっとみる」をクリックしてエキスパンド
+        driver.execute_script('arguments[0].click();', driver.find_element_by_xpath(expand_xpath))
+        #Wait
+        time.sleep(SLEEP_TIME)
+        
+        #設立年のxpathが異なるケースがあるため、分岐させる
+        if '年' in driver.find_element_by_xpath('//*[@id="jsCompanyInfoBox"]/div[2]/dl/dd[5]').text:
+            established_year_xpath = '//*[@id="jsCompanyInfoBox"]/div[2]/dl/dd[5]'
+        elif '年' in driver.find_element_by_xpath('//*[@id="jsCompanyInfoBox"]/div[2]/dl/dd[4]').text:
+            established_year_xpath = '//*[@id="jsCompanyInfoBox"]/div[2]/dl/dd[4]'
+        #そもそも年がそんざいしないため、取得できない場合は、業種をダミーデータで入れとく
+        else:
+            established_year_xpath = '//*[@id="jsCompanyInfoBox"]/div[2]/dl/dd[1]'
+            
+        #5.総合スコア
+        totalscore_xpath = '//*[@id="mainColumn"]/article[1]/div[2]/div[1]/div[1]/p[2]/span'
+        
+        #6.社員の士気
+        motivation_xpath = '//*[@id="mainColumn"]/article[1]/div[2]/div[2]/ul/li[2]/dl/dd'
+        
+        #7.風通し良さ
+        openness_xpath = '//*[@id="mainColumn"]/article[1]/div[2]/div[2]/ul/li[3]/dl/dd'
+
+        #8.社員相互尊重
+        respect_xpath = '//*[@id="mainColumn"]/article[1]/div[2]/div[2]/ul/li[4]/dl/dd'
+        
+        #9.20代成長性
+        twenties_xpath = '//*[@id="mainColumn"]/article[1]/div[2]/div[2]/ul/li[5]/dl/dd'
+        
+        #10.人材長期育成
+        longterm_xpath = '//*[@id="mainColumn"]/article[1]/div[2]/div[2]/ul/li[6]/dl/dd'
+        
+        #11.法令遵守
+        compliance_xpath = '//*[@id="mainColumn"]/article[1]/div[2]/div[2]/ul/li[7]/dl/dd'
+        
+        #12.人事評価適正感
+        fairness_xpath = '//*[@id="mainColumn"]/article[1]/div[2]/div[2]/ul/li[7]/dl/dd'
+        
+        #13. 待遇満足度
+        salary_xpath = '/html/body/div[1]/main/div/div[1]/article[1]/div[2]/div[2]/ul/li[1]/dl/dd'    
+        
+        #テキスト取得(エレメントが存在しない場合があるため、全要素において例外処理をいれる)
+        try:
+            overtime_text = driver.find_element_by_xpath(overtime_xpath).text
+        except Exception:
+            overtime_text = Error_Message
+        
+        try:
+            paidvacation_text  = driver.find_element_by_xpath(paidvacation_xpath).text
+        except Exception:
+            paidvacation_text = Error_Message
+            
+        try:
+            average_salary_text = driver.find_element_by_xpath(average_salary_xpath).text
+        except Exception:
+            average_salary_text = Error_Message
+            
+        #設立年はトライ処理必要ない
+        established_year_text = driver.find_element_by_xpath(established_year_xpath).text
+
+        try:
+            totalscore_text = driver.find_element_by_xpath(totalscore_xpath).text
+        except Exception:
+            totalscore_text = Error_Message
+            
+        try:
+            motivation_text = driver.find_element_by_xpath(motivation_xpath).text
+        except Exception:
+            motivation_text = Error_Message
+            
+        try:
+            openness_text = driver.find_element_by_xpath(openness_xpath).text
+        except Exception:
+            openness_text = Error_Message
+            
+        try:
+            respect_text = driver.find_element_by_xpath(respect_xpath).text
+        except Exception:
+            respect_text = Error_Message
+            
+        try:
+            twenties_text = driver.find_element_by_xpath(twenties_xpath).text
+        except Exception:
+            twenties_text = Error_Message
+            
+        try:
+            longterm_text = driver.find_element_by_xpath(longterm_xpath).text
+        except Exception:
+            longterm_text = Error_Message
+        
+        try:
+            compliance_text = driver.find_element_by_xpath(compliance_xpath).text
+        except Exception:
+            compliance_text = Error_Message
+        
+        try:
+            fairness_text = driver.find_element_by_xpath(fairness_xpath).text
+        except Exception:
+            fairness_text = Error_Message
+        
+        try:
+            salary_text = driver.find_element_by_xpath(salary_xpath).text
+        except Exception:
+            salary_text = Error_Message
+
+        #空リストに値代入
+        #k0.append(company_name_text)
+        k1.append(overtime_text)
+        k2.append(paidvacation_text)
+        k3.append(average_salary_text)
+        #established_yearが設立年を正しく取れていないケースがあるので、取れていない場合はk4にNoneを追加
+        #正しく取れているのであれば、「年」を除去した上で、int型に直してからk4に追加
+        if '年' in established_year_text:
+            established_year_text = int(established_year_text.replace('年',''))
+            k4.append(established_year_text)
+        else:
+            k4.append(None)
+        k5.append(totalscore_text)
+        k6.append(motivation_text)
+        k7.append(openness_text)
+        k8.append(respect_text)
+        k9.append(twenties_text)
+        k10.append(longterm_text)
+        k11.append(compliance_text)
+        k12.append(fairness_text)
+        k13.append(salary_text)
+
+driver.quit()
+df_company = pd.DataFrame(data={'企業名':a, '企業ID': b, '口コミ種別ID': c,'回答日時': d, '回答タイプ': e,'評価':f,'本文':g,'業種':h},columns=['企業名', '企業ID', '口コミ種別ID', '回答日時', '回答タイプ','評価','本文','業種'])
+
+
+
+#df_company_infoのハコをまずつくる
+df_company_info = pd.DataFrame(index=[],columns=['企業名','月残業時間','有給消化率','平均年収','設立年','総合スコア',
+                                    '社員の士気','風通し','社員相互尊重',
+                                    '20代成長性','長期育成','コンプラ',
+                                    '評価納得感','待遇満足度'])
+
+#company_idsのリストの要素長さ分だけ、dataframeへappendを行う
+for i in range(len(company_ids)):
+    df_company_info = df_company_info.append({'企業名': np.unique(a)[i], '月残業時間': k1[i],
+                            '有給消化率':k2[i],
+                            '平均年収':k3[i],'設立年':k4[i],'総合スコア':k5[i],
+                            '社員の士気':k6[i],'風通し':k7[i],'社員相互尊重':k8[i],
+                            '20代成長性':k9[i],'長期育成':k10[i],'コンプラ':k11[i],
+                            '評価納得感':k12[i],'待遇満足度':k13[i]
+                            },ignore_index=True)
+
+#df_companyに回答種別をくっつける###
+answer_type={'1':"組織体制・企業文化",'2':"年収・給与制度",'3':"入社理由と入社後ギャップ",'4':"働きがい・成長",
+             '5':"女性の働きやすさ",'6':"ワーク・ライフ・バランス",'8':"退職検討理由",'9':"企業分析［強み・弱み・展望］",
+            '10':"経営者への提言"}
+
+df_company["口コミ種別"] = df_company.口コミ種別ID.map(answer_type)
+##############################
+
+####回答タイプから、職種、在籍年数、現職かどうか、新卒かどうか、性別を抜き出す
+job_type = df_company["回答タイプ"].str.split(("、"),expand=True).iloc[:,0]
+years = df_company["回答タイプ"].str.split(("、"),expand=True).iloc[:,1]
+stay = df_company["回答タイプ"].str.split(("、"),expand=True).iloc[:,2]
+new_graduate = df_company["回答タイプ"].str.split(("、"),expand=True).iloc[:,3]
+sex = df_company["回答タイプ"].str.split(("、"),expand=True).iloc[:,4]
+
+#df_companyに新しい列として追加
+df_company['職種'] = job_type
+df_company['経験年数'] = years
+df_company['現職/退職'] = stay
+df_company['新卒/中途'] = new_graduate
+df_company['性別'] = sex
+
+#元の回答タイプのカラムはいらないので落とす
+df_company.drop("回答タイプ",axis=1,inplace=True)
+
+#本文の改行コード削除
+df_company.本文 = df_company.本文.replace('\n','',regex=True)
+
+####結果のshape
+print(df_company.shape)
+print(df_company_info.shape)
